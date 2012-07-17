@@ -2,7 +2,7 @@
 
 __author__ = 'levbrave'
 
-from PySide import QtCore, QtGui
+from PySide import QtGui
 from FrameSeparator import FrameSeparator
 
 #**************************************************************************************************
@@ -44,7 +44,8 @@ class DialogLogin(QtGui.QDialog):
 
     def _verification(self):
         cursor = self.__dataBase.cursor()
-        cursor.execute('SELECT `user`.`id`, `user`.`login`, `user`.`password`, `user`.`service_id`, `user`.`name` '
+        cursor.execute('SELECT `user`.`id`, `user`.`login`, `user`.`password`, `user`.`service_id`, '
+                       '`user`.`name`, `user`.`status`, `user`.`enable` '
                        'FROM `mqueuedb`.`user`')
         self.__dataBase.commit()
         lstUsers = cursor.fetchall()
@@ -53,11 +54,22 @@ class DialogLogin(QtGui.QDialog):
 
         for item in lstUsers:
             if self.__loginLineEdit.text() == item[1] and self.__passwordLineEdit.text() == item[2]:
-                self.__userId = item[0]
-                self.__userName = item[4]
-                self.__serviceId = item[3]
                 check = True
-                self.accept()
+
+                if not int(item[6]):
+                    QtGui.QMessageBox.information(self, self.tr('Ошибка входа'),
+                        self.tr('Данный пользователь заблокирован'))
+                elif not int(item[5]):
+                    self.__userId = item[0]
+                    self.__userName = item[4]
+                    self.__serviceId = item[3]
+                    cursor.execute('UPDATE `mqueuedb`.`user` SET `status`="1" '
+                                   'WHERE `id`="%s"' % self.__userId)
+                    self.__dataBase.commit()
+                    self.accept()
+                else:
+                    QtGui.QMessageBox.information(self, self.tr('Ошибка входа'),
+                        self.tr('Пользователь с таким логином уже находится в системе'))
 
         if not check:
             QtGui.QMessageBox.information(self, self.tr('Ошибка входа'),
