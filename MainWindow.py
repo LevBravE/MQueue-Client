@@ -2,11 +2,11 @@
 
 __author__ = 'levbrave'
 
-import sys
-
 from PySide import QtCore, QtGui
 from DialogSettings import DialogSettings
 from DialogLogin import DialogLogin
+from DialogReturnClient import DialogReturnClient
+from TimeLateLCDNumber import TimeLateLCDNumber
 from SynchronizationServerThread import SynchronizationServerThread
 from SynchronizationSessionThread import SynchronizationSessionThread
 from SynchronizationCountThread import SynchronizationCountThread
@@ -23,7 +23,7 @@ class MainWindow(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self)
         self.__APPLICATION_CORP = 'LevCorp'
         self.__APPLICATION_NAME = 'MQueue-Client'
-        self.__VERSION = '1.0'
+        self.__VERSION = '2.0'
         self.__dataBase = None
         self.__session = None
         self.__sessionClient = False
@@ -40,35 +40,144 @@ class MainWindow(QtGui.QMainWindow):
         self.__synchronizationTimer = QtCore.QTimer()
         self.__synchronizationCountTimer = QtCore.QTimer()
         # Label
-        self.__userLabel = QtGui.QLabel()
-
-        self.__infoLabel = QtGui.QLabel()
+        self.__userNameLabel = QtGui.QLabel()
 
         self.__imageCentralLabel = QtGui.QLabel()
         self.__imageCentralLabel.setPixmap('img/MQClientApp.png')
+
+        self.__imageUserLabel = QtGui.QLabel()
+        self.__imageUserLabel.setPixmap('img/user32x32.png')
+        self.__imageUserLabel.setStatusTip(self.tr('Пользователь'))
+
+        self.__imageClientLabel = QtGui.QLabel()
+        self.__imageClientLabel.setPixmap('img/client32x32.png')
+        self.__imageClientLabel.setStatusTip(self.tr('Номер клиента'))
+
+        self.__imageClockLabel = QtGui.QLabel()
+        self.__imageClockLabel.setPixmap('img/clock32x32.png')
+        self.__imageClockLabel.setStatusTip(self.tr('Время обслуживания клиента'))
+
+        self.__imageQueueLabel = QtGui.QLabel()
+        self.__imageQueueLabel.setPixmap('img/queue32x32.png')
+        self.__imageQueueLabel.setStatusTip(self.tr('Количество людей в очереди'))
 
         self.__statusMQueueDataBase = QtGui.QLabel()
         self.__statusMQueueDataBase.setAlignment(QtCore.Qt.AlignHCenter)
 
         self.__statusMQueueSession = QtGui.QLabel()
         self.__statusMQueueSession.setAlignment(QtCore.Qt.AlignHCenter)
+        # Palette
+        self.__paletteRed = QtGui.QPalette()
+        self.__paletteRed.setBrush(QtGui.QPalette.Light, QtCore.Qt.red)
+
+        self.__paletteGreen = QtGui.QPalette()
+        self.__paletteGreen.setBrush(QtGui.QPalette.Light, QtCore.Qt.green)
+        # LCDNumber
+        self.__clientLCDNumber = QtGui.QLCDNumber(3)
+        self.__clientLCDNumber.setFrameStyle(QtGui.QFrame.NoFrame)
+        self.__clientLCDNumber.display('000')
+        self.__clientLCDNumber.setPalette(self.__paletteRed)
+        self.__clientLCDNumber.setStatusTip(self.tr('Номер клиента'))
+
+        self.__countLCDNumber = QtGui.QLCDNumber(2)
+        self.__countLCDNumber.setFrameStyle(QtGui.QFrame.NoFrame)
+        self.__countLCDNumber.display(0)
+        self.__countLCDNumber.setPalette(self.__paletteRed)
+        self.__countLCDNumber.setStatusTip(self.tr('Количество людей в очереди'))
+        # TimeLateLCDNumber
+        self.__timeLateLCDNumber = TimeLateLCDNumber()
+        self.__timeLateLCDNumber.setFrameStyle(QtGui.QFrame.NoFrame)
+        self.__timeLateLCDNumber.display('00:00:00')
+        self.__timeLateLCDNumber.setPalette(self.__paletteRed)
+        self.__timeLateLCDNumber.setStatusTip(self.tr('Время обслуживания клиента'))
         # PushButton
+        strStyleSheetLog = 'QPushButton { '\
+                             'border: 1px solid #FFFACD; '\
+                             'border-radius: 3px; '\
+                             'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #f6f7fa, stop: 1 #E0FFFF); '\
+                             'min-width: 30px; '\
+                             'padding: 3px;} '\
+                             'QPushButton:hover { '\
+                             'border: 1px solid #FFFF00;} '\
+                             'QPushButton:pressed { '\
+                             'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #dadbde, stop: 1 #f6f7fa);}'
+
+        strStyleSheetPushButton = 'QPushButton { ' \
+                                  'border: 1px solid silver; ' \
+                                  'border-radius: 3px; ' \
+                                  'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #f6f7fa, stop: 1 #dadbde); ' \
+                                  'min-width: 80px; ' \
+                                  'min-height: 55px; ' \
+                                  'padding: 3px;} ' \
+                                  'QPushButton:hover { ' \
+                                  'border: 1px solid #3CB371;} ' \
+                                  'QPushButton:pressed { ' \
+                                  'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #dadbde, stop: 1 #f6f7fa);}'
+
+        self.__loginPushButton = QtGui.QPushButton()
+        self.__loginPushButton.setIcon(QtGui.QIcon('img/login32x32.png'))
+        self.__loginPushButton.setStyleSheet(strStyleSheetLog)
+        self.__loginPushButton.setToolTip(self.tr('Войти'))
+        self.__loginPushButton.setVisible(False)
+
+        self.__logoutPushButton = QtGui.QPushButton()
+        self.__logoutPushButton.setIcon(QtGui.QIcon('img/logout32x32.png'))
+        self.__logoutPushButton.setStyleSheet(strStyleSheetLog)
+        self.__logoutPushButton.setToolTip(self.tr('Выйти'))
+        self.__logoutPushButton.setVisible(False)
+
         self.__nextClientPushButton = QtGui.QPushButton(self.tr('Следующий'))
+        self.__nextClientPushButton.setStyleSheet(strStyleSheetPushButton)
+        self.__nextClientPushButton.setEnabled(False)
+
+        self.__returnClientPushButton = QtGui.QPushButton(self.tr('Вернуть в очередь'))
+        self.__returnClientPushButton.setStyleSheet(strStyleSheetPushButton)
+        self.__returnClientPushButton.setEnabled(False)
+
         self.__finishClientPushButton = QtGui.QPushButton(self.tr('Завершить'))
+        self.__finishClientPushButton.setStyleSheet(strStyleSheetPushButton)
+        self.__finishClientPushButton.setEnabled(False)
         # SystemTrayIcon
         self.__systemTrayIcon = QtGui.QSystemTrayIcon()
         self.__systemTrayIcon.setIcon(QtGui.QIcon('img/MQLogo.png'))
         self.__systemTrayIcon.show()
         # Layout
-        self.__layoutHButton = QtGui.QHBoxLayout()
-        self.__layoutHButton.addWidget(self.__nextClientPushButton)
-        self.__layoutHButton.addWidget(self.__finishClientPushButton)
+        self.__layoutVButton = QtGui.QVBoxLayout()
+        self.__layoutVButton.addWidget(self.__nextClientPushButton)
+        self.__layoutVButton.addWidget(self.__returnClientPushButton)
+        self.__layoutVButton.addWidget(self.__finishClientPushButton)
+        self.__layoutVButton.setAlignment(QtCore.Qt.AlignTop)
+
+        self.__layoutHQueue = QtGui.QHBoxLayout()
+        self.__layoutHQueue.addWidget(self.__imageClientLabel)
+        self.__layoutHQueue.addWidget(self.__clientLCDNumber)
+        self.__layoutHQueue.addStretch(10)
+        self.__layoutHQueue.addWidget(self.__imageClockLabel)
+        self.__layoutHQueue.addWidget(self.__timeLateLCDNumber)
+        self.__layoutHQueue.addStretch(10)
+        self.__layoutHQueue.addWidget(self.__imageQueueLabel)
+        self.__layoutHQueue.addWidget(self.__countLCDNumber)
+        self.__layoutHQueue.setAlignment(QtCore.Qt.AlignCenter)
+
+        self.__layoutHUser = QtGui.QHBoxLayout()
+        self.__layoutHUser.addWidget(self.__imageUserLabel)
+        self.__layoutHUser.addWidget(self.__userNameLabel)
+        self.__layoutHUser.addStretch(10)
+        self.__layoutHUser.addWidget(self.__loginPushButton)
+        self.__layoutHUser.addWidget(self.__logoutPushButton)
+
+        self.__layoutVContent = QtGui.QVBoxLayout()
+        self.__layoutVContent.addWidget(self.__imageCentralLabel)
+        self.__layoutVContent.addLayout(self.__layoutHQueue)
+
+        self.__layoutHContent = QtGui.QHBoxLayout()
+        self.__layoutHContent.addLayout(self.__layoutVContent)
+        self.__layoutHContent.addLayout(self.__layoutVButton)
 
         self.__layoutVMain = QtGui.QVBoxLayout()
-        self.__layoutVMain.addWidget(self.__userLabel)
-        self.__layoutVMain.addWidget(self.__infoLabel)
-        self.__layoutVMain.addWidget(self.__imageCentralLabel)
-        self.__layoutVMain.addLayout(self.__layoutHButton)
+        self.__layoutVMain.addLayout(self.__layoutHUser)
+        self.__layoutVMain.addLayout(self.__layoutHContent)
+        self.__layoutVMain.setContentsMargins(3, 3, 5, 3)
         # Widget
         self.__centralWidget = QtGui.QWidget()
         self.__centralWidget.setLayout(self.__layoutVMain)
@@ -78,7 +187,7 @@ class MainWindow(QtGui.QMainWindow):
         self._createMenus()
         self._createStatusBar()
         self._synchronizationAutoServer()
-        self._readSettings()
+        self._windowMoveToCenter()
         # Connect
         self.__synchronizationServerThread.finished.connect(self._checkAvailabilityServer)
         self.__synchronizationServerThread.finished.connect(self._userLogin)
@@ -89,9 +198,13 @@ class MainWindow(QtGui.QMainWindow):
         self.__synchronizationTimer.timeout.connect(self._synchronizationAutoSession)
         self.__synchronizationCountTimer.timeout.connect(self._synchronizationAutoCount)
 
+        self.__loginPushButton.clicked.connect(self._userClickedLogin)
+        self.__logoutPushButton.clicked.connect(self._userClickedLogout)
+
         self.__nextClientPushButton.clicked.connect(self._nextClient)
+        self.__returnClientPushButton.clicked.connect(self._returnClient)
         self.__finishClientPushButton.clicked.connect(self._finishClient)
-        # Timer every 0.2 sec
+        # Timer every 5 sec
         self.__synchronizationTimer.start(5000)
         # <<<Self>>>
         self.setWindowTitle('%s %s' % (self.__APPLICATION_NAME, self.__VERSION))
@@ -104,10 +217,17 @@ class MainWindow(QtGui.QMainWindow):
         self.__actionFileNextClient = QtGui.QAction(QtGui.QIcon('img/black/png/arrow_right_icon&16.png'),
             self.tr('&Следующий'), self, shortcut='Ctrl+Alt+N',
             statusTip=self.tr('Принять следующего клиента'), triggered=self._nextClient)
+        self.__actionFileNextClient.setEnabled(False)
+
+        self.__actionFileReturnClient = QtGui.QAction(QtGui.QIcon('img/black/png/export_icon&16.png'),
+            self.tr('&Вернуть в очередь'), self, shortcut='Ctrl+Alt+R',
+            statusTip=self.tr('Вернуть в очередь клиента'), triggered=self._returnClient)
+        self.__actionFileReturnClient.setEnabled(False)
 
         self.__actionFileFinishClient = QtGui.QAction(QtGui.QIcon('img/black/png/flag_icon&16.png'),
             self.tr('&Завершить'), self, shortcut='Ctrl+Alt+Q',
             statusTip=self.tr('Завершить работу с клиентом'), triggered=self._finishClient)
+        self.__actionFileFinishClient.setEnabled(False)
 
         self.__actionFileSettingClient = QtGui.QAction(QtGui.QIcon('img/black/png/wrench_plus_2_icon&16.png'),
             self.tr('&Настройки'), self, shortcut='Ctrl+Alt+S',
@@ -121,15 +241,11 @@ class MainWindow(QtGui.QMainWindow):
             self.tr('&О программе'), self,
             statusTip=self.tr('Показать информацию о программе'), triggered=self._about)
 
-        self.__actionFileNextClient.setEnabled(False)
-        self.__actionFileFinishClient.setEnabled(False)
-        self.__nextClientPushButton.setEnabled(False)
-        self.__finishClientPushButton.setEnabled(False)
-
     def _createToolBars(self):
         self.__toolBar = self.addToolBar(self.tr('Панель инструментов'))
         self.__toolBar.setMovable(False)
         self.__toolBar.addAction(self.__actionFileNextClient)
+        self.__toolBar.addAction(self.__actionFileReturnClient)
         self.__toolBar.addAction(self.__actionFileFinishClient)
         self.__toolBar.addSeparator()
         self.__toolBar.addAction(self.__actionFileSettingClient)
@@ -137,6 +253,7 @@ class MainWindow(QtGui.QMainWindow):
     def _createMenus(self):
         fileMenu = self.menuBar().addMenu(self.tr('&Файл'))
         fileMenu.addAction(self.__actionFileNextClient)
+        fileMenu.addAction(self.__actionFileReturnClient)
         fileMenu.addAction(self.__actionFileFinishClient)
         fileMenu.addSeparator()
         fileMenu.addAction(self.__actionFileSettingClient)
@@ -151,18 +268,10 @@ class MainWindow(QtGui.QMainWindow):
         self.statusBar().addPermanentWidget(self.__statusMQueueSession)
         self.statusBar().addPermanentWidget(self.__statusMQueueDataBase)
 
-    def _readSettings(self):
-        settings = QtCore.QSettings(self.__APPLICATION_CORP, self.__APPLICATION_NAME)
-        pos = settings.value('pos', QtCore.QPoint(200, 100))
-        size = settings.value('size', QtCore.QSize(400, 200))
-
-        self.resize(size)
-        self.move(pos)
-
-    def _writeSettings(self):
-        settings = QtCore.QSettings(self.__APPLICATION_CORP, self.__APPLICATION_NAME)
-        settings.setValue('pos', self.pos())
-        settings.setValue('size', self.size())
+    def _windowMoveToCenter(self):
+        rect = self.frameGeometry()
+        rect.moveCenter(QtGui.QDesktopWidget().availableGeometry().center())
+        self.move(rect.topLeft())
 
     def _userLogin(self):
         self.__synchronizationServerThread.finished.disconnect(self._userLogin)
@@ -171,76 +280,200 @@ class MainWindow(QtGui.QMainWindow):
             dialogLogin = DialogLogin(self.tr('Вход'), self.__dataBase)
             if dialogLogin.exec_() == QtGui.QDialog.Accepted:
                 self.__userId = dialogLogin._userId()
-                self.__userLabel.setText(self.tr('Сотрудник: %s' % dialogLogin._userName()))
+                self.__userNameLabel.setText(self.tr('<b style="font-size: 11pt;">%s</b>' % dialogLogin._userName()))
                 self.__serviceId = dialogLogin._serviceId()
                 self.__synchronizationCountTimer.start(5000)
 
+                self.__logoutPushButton.setVisible(True)
+
                 cursor = self.__dataBase.cursor()
-                cursor.execute('SELECT `client`.`id`, `client`.`number` FROM `mqueuedb`.`client` '
+                cursor.execute('SELECT `client`.`id`, `client`.`number`, `client`.`start_time` FROM `mqueuedb`.`client` '
                                'WHERE `client`.`served` = 0 AND `client`.`call` = 1 AND `client`.`service_id` = %s '
                                'AND `client`.`user_id` = %s' % (self.__serviceId, self.__userId))
                 self.__dataBase.commit()
                 client = cursor.fetchone()
                 if client:
-                    self.__synchronizationCountTimer.stop()
-
                     self.__clientId = client[0]
                     clientNumber = client[1]
+                    startDataTime = unicode(client[2])
 
-                    self.__infoLabel.setText(self.tr('Обслуживание клиента - %s') % clientNumber)
+                    cursor.execute('SELECT NOW()')
+                    self.__dataBase.commit()
+                    currentDataTime = unicode(cursor.fetchone()[0])
+
+                    self.__clientLCDNumber.display(clientNumber)
+                    self.__clientLCDNumber.setPalette(self.__paletteGreen)
+
+                    self.__timeLateLCDNumber._setStartDataTime(startDataTime, currentDataTime)
+                    self.__timeLateLCDNumber.setPalette(self.__paletteGreen)
+                    self.__timeLateLCDNumber._start()
 
                     self.__sessionClient = True
                     self.__actionFileNextClient.setEnabled(False)
+                    self.__actionFileReturnClient.setEnabled(True)
                     self.__actionFileFinishClient.setEnabled(True)
                     self.__nextClientPushButton.setEnabled(False)
+                    self.__returnClientPushButton.setEnabled(True)
                     self.__finishClientPushButton.setEnabled(True)
             else:
-                sys.exit(1)
+                self.__loginPushButton.setVisible(True)
         else:
             QtGui.QMessageBox.warning(self, self.tr('Предупреждение'),
                 self.tr('Сервер базы данных, недоступен'))
+            self.__loginPushButton.setVisible(True)
 
+    def _userClickedLogin(self):
+        dialogLogin = DialogLogin(self.tr('Вход'), self.__dataBase)
+        if dialogLogin.exec_() == QtGui.QDialog.Accepted:
+            self.__userId = dialogLogin._userId()
+            self.__userNameLabel.setText(self.tr('<b style="font-size: 11pt;">%s</b>' % dialogLogin._userName()))
+            self.__serviceId = dialogLogin._serviceId()
+            self.__synchronizationCountTimer.start(5000)
 
-    def _nextClient(self):
-        cursor = self.__dataBase.cursor()
-        cursor.execute('SELECT client.id, client.number FROM mqueuedb.client '
-                       'WHERE client.served = 0 AND client.call = 0 AND client.service_id = %s '
-                       'AND ( client.user_id = %s OR client.user_id IS NULL )' % (self.__serviceId, self.__userId))
-        self.__dataBase.commit()
-        client = cursor.fetchone()
-        if client:
-            self.__synchronizationCountTimer.stop()
-            self.__clientId = client[0]
-            clientNumber = client[1]
+            self.__loginPushButton.setVisible(False)
+            self.__logoutPushButton.setVisible(True)
 
-            dateTime = QtCore.QDateTime().currentDateTime().toString(QtCore.Qt.ISODate)
-
-            cursor.execute('UPDATE `mqueuedb`.`client` SET `start_time`="%s", `call`="1", `user_id`="%s" '
-                           'WHERE `id`="%s"' % (dateTime, self.__userId, self.__clientId))
+            cursor = self.__dataBase.cursor()
+            cursor.execute('SELECT `client`.`id`, `client`.`number`, `client`.`start_time` FROM `mqueuedb`.`client` '
+                           'WHERE `client`.`served` = 0 AND `client`.`call` = 1 AND `client`.`service_id` = %s '
+                           'AND `client`.`user_id` = %s' % (self.__serviceId, self.__userId))
             self.__dataBase.commit()
+            client = cursor.fetchone()
+            if client:
+                self.__clientId = client[0]
+                clientNumber = client[1]
+                startDataTime = unicode(client[2])
 
-            self.__infoLabel.setText(self.tr('Обслуживание клиента - %s') % clientNumber)
+                cursor.execute('SELECT NOW()')
+                self.__dataBase.commit()
+                currentDataTime = unicode(cursor.fetchone()[0])
 
-            self.__sessionClient = True
-            self.__actionFileNextClient.setEnabled(False)
-            self.__actionFileFinishClient.setEnabled(True)
-            self.__nextClientPushButton.setEnabled(False)
-            self.__finishClientPushButton.setEnabled(True)
+                self.__clientLCDNumber.display(clientNumber)
+                self.__clientLCDNumber.setPalette(self.__paletteGreen)
 
-    def _finishClient(self):
-        self.__synchronizationCountTimer.start(3000)
+                self.__timeLateLCDNumber._setStartDataTime(startDataTime, currentDataTime)
+                self.__timeLateLCDNumber.setPalette(self.__paletteGreen)
+                self.__timeLateLCDNumber._start()
 
+                self.__sessionClient = True
+                self.__actionFileNextClient.setEnabled(False)
+                self.__actionFileReturnClient.setEnabled(True)
+                self.__actionFileFinishClient.setEnabled(True)
+                self.__nextClientPushButton.setEnabled(False)
+                self.__returnClientPushButton.setEnabled(True)
+                self.__finishClientPushButton.setEnabled(True)
+
+    def _userClickedLogout(self):
         cursor = self.__dataBase.cursor()
-
-        dateTime = QtCore.QDateTime().currentDateTime().toString(QtCore.Qt.ISODate)
-
-        cursor.execute('UPDATE `mqueuedb`.`client` SET `finish_time`="%s", `served`="1" WHERE `id`="%s"' % (dateTime, self.__clientId))
+        cursor.execute('UPDATE `mqueuedb`.`user` SET `status`="0" '
+                       'WHERE `id`="%s"' % self.__userId)
         self.__dataBase.commit()
+
+        self.__loginPushButton.setVisible(True)
+        self.__logoutPushButton.setVisible(False)
+
+        self.__userId = None
+        self.__userNameLabel.setText('')
+        self.__serviceId = None
+        self.__synchronizationCountTimer.stop()
+
+        self.__clientLCDNumber.display('000')
+        self.__clientLCDNumber.setPalette(self.__paletteRed)
+
+        self.__timeLateLCDNumber.display('00:00:00')
+        self.__timeLateLCDNumber.setPalette(self.__paletteRed)
+        self.__timeLateLCDNumber._stop()
+
+        self.__countLCDNumber.display(0)
+        self.__countLCDNumber.setPalette(self.__paletteRed)
 
         self.__sessionClient = False
         self.__actionFileNextClient.setEnabled(False)
+        self.__actionFileReturnClient.setEnabled(False)
         self.__actionFileFinishClient.setEnabled(False)
         self.__nextClientPushButton.setEnabled(False)
+        self.__returnClientPushButton.setEnabled(False)
+        self.__finishClientPushButton.setEnabled(False)
+
+    def _nextClient(self):
+        cursor = self.__dataBase.cursor()
+        cursor.execute('SELECT `client`.`id`, `client`.`number` FROM `mqueuedb`.`client` '
+                       'WHERE `client`.`served` = 0 AND `client`.`call` = 0 AND `client`.`service_id` = %s '
+                       'AND ( `client`.`user_id` = %s OR `client`.`user_id` IS NULL )' % (self.__serviceId, self.__userId))
+        self.__dataBase.commit()
+        client = cursor.fetchone()
+        if client:
+            self.__clientId = client[0]
+            clientNumber = client[1]
+
+            cursor.execute('SELECT NOW()')
+            self.__dataBase.commit()
+            startDataTime = unicode(cursor.fetchone()[0])
+
+            cursor.execute('UPDATE `mqueuedb`.`client` SET `start_time`="%s", `call`="1", `user_id`="%s" '
+                           'WHERE `id`="%s"' % (startDataTime, self.__userId, self.__clientId))
+            self.__dataBase.commit()
+
+            self.__clientLCDNumber.display(clientNumber)
+            self.__clientLCDNumber.setPalette(self.__paletteGreen)
+
+            self.__timeLateLCDNumber._setStartDataTime(startDataTime, startDataTime)
+            self.__timeLateLCDNumber.setPalette(self.__paletteGreen)
+            self.__timeLateLCDNumber._start()
+
+            self.__sessionClient = True
+            self.__actionFileNextClient.setEnabled(False)
+            self.__actionFileReturnClient.setEnabled(True)
+            self.__actionFileFinishClient.setEnabled(True)
+            self.__nextClientPushButton.setEnabled(False)
+            self.__returnClientPushButton.setEnabled(True)
+            self.__finishClientPushButton.setEnabled(True)
+
+    def _returnClient(self):
+        dialogReturnClient = DialogReturnClient(self.tr('Вход'), self.__dataBase)
+        dialogReturnClient._setClientId(self.__clientId)
+        dialogReturnClient._setUserId(self.__userId)
+        dialogReturnClient._setServiceId(self.__serviceId)
+
+        if dialogReturnClient.exec_() == QtGui.QDialog.Accepted:
+            self.__clientLCDNumber.display('000')
+            self.__clientLCDNumber.setPalette(self.__paletteRed)
+
+            self.__timeLateLCDNumber.display('00:00:00')
+            self.__timeLateLCDNumber.setPalette(self.__paletteRed)
+            self.__timeLateLCDNumber._stop()
+
+            self.__sessionClient = False
+            self.__actionFileNextClient.setEnabled(False)
+            self.__actionFileReturnClient.setEnabled(False)
+            self.__actionFileFinishClient.setEnabled(False)
+            self.__nextClientPushButton.setEnabled(False)
+            self.__returnClientPushButton.setEnabled(False)
+            self.__finishClientPushButton.setEnabled(False)
+
+    def _finishClient(self):
+        cursor = self.__dataBase.cursor()
+        cursor.execute('SELECT NOW()')
+        self.__dataBase.commit()
+        finishDataTime = unicode(cursor.fetchone()[0])
+
+        cursor.execute('UPDATE `mqueuedb`.`client` SET `finish_time`="%s", `served`="1" '
+                       'WHERE `id`="%s"' % (finishDataTime, self.__clientId))
+        self.__dataBase.commit()
+
+        self.__clientLCDNumber.display('000')
+        self.__clientLCDNumber.setPalette(self.__paletteRed)
+
+        self.__timeLateLCDNumber.display('00:00:00')
+        self.__timeLateLCDNumber.setPalette(self.__paletteRed)
+        self.__timeLateLCDNumber._stop()
+
+        self.__sessionClient = False
+        self.__actionFileNextClient.setEnabled(False)
+        self.__actionFileReturnClient.setEnabled(False)
+        self.__actionFileFinishClient.setEnabled(False)
+        self.__nextClientPushButton.setEnabled(False)
+        self.__returnClientPushButton.setEnabled(False)
         self.__finishClientPushButton.setEnabled(False)
 
     def _settingTerminal(self):
@@ -275,7 +508,11 @@ class MainWindow(QtGui.QMainWindow):
             QtGui.QMessageBox.Ok, QtGui.QMessageBox.Cancel)
 
         if ok == QtGui.QMessageBox.Ok:
-            #self._writeSettings()
+            cursor = self.__dataBase.cursor()
+            cursor.execute('UPDATE `mqueuedb`.`user` SET `status`="0" '
+                           'WHERE `id`="%s"' % self.__userId)
+            self.__dataBase.commit()
+
             event.accept()
         else:
             event.ignore()
@@ -359,35 +596,63 @@ class MainWindow(QtGui.QMainWindow):
             lstClients = self.__synchronizationCountThread._response()
 
             if lstClients:
-                self.__infoLabel.setText(self.tr('Количество людей в очереди - %s') % len(lstClients))
+                self.__countLCDNumber.display(len(lstClients))
+                self.__countLCDNumber.setPalette(self.__paletteGreen)
                 if not self.__sessionClient and not self.isActiveWindow():
                     QtGui.QApplication.alert(self)
                     self.__systemTrayIcon.showMessage(
                         self.tr('Внимание! Очередь...'),
                         self.tr('Количество людей в очереди - %s') % len(lstClients))
-                else:
+
+                if self.__sessionClient:
                     self.__actionFileNextClient.setEnabled(False)
+                    self.__actionFileReturnClient.setEnabled(True)
                     self.__actionFileFinishClient.setEnabled(True)
                     self.__nextClientPushButton.setEnabled(False)
+                    self.__returnClientPushButton.setEnabled(True)
                     self.__finishClientPushButton.setEnabled(True)
+                else:
+                    self.__actionFileNextClient.setEnabled(True)
+                    self.__actionFileReturnClient.setEnabled(False)
+                    self.__actionFileFinishClient.setEnabled(False)
+                    self.__nextClientPushButton.setEnabled(True)
+                    self.__returnClientPushButton.setEnabled(False)
+                    self.__finishClientPushButton.setEnabled(False)
 
             elif not self.__sessionClient:
-                self.__infoLabel.setText(self.tr('Количество людей в очереди - .:пусто:. '))
+                self.__countLCDNumber.display(0)
+                self.__countLCDNumber.setPalette(self.__paletteRed)
                 self.__actionFileNextClient.setEnabled(False)
+                self.__actionFileReturnClient.setEnabled(False)
                 self.__actionFileFinishClient.setEnabled(False)
                 self.__nextClientPushButton.setEnabled(False)
+                self.__returnClientPushButton.setEnabled(False)
                 self.__finishClientPushButton.setEnabled(False)
-
-            if lstClients and not self.__sessionClient:
-                self.__actionFileNextClient.setEnabled(True)
-                self.__actionFileFinishClient.setEnabled(False)
-                self.__nextClientPushButton.setEnabled(True)
-                self.__finishClientPushButton.setEnabled(False)
+            elif self.__sessionClient:
+                self.__countLCDNumber.display(0)
+                self.__countLCDNumber.setPalette(self.__paletteRed)
+                self.__actionFileNextClient.setEnabled(False)
+                self.__actionFileReturnClient.setEnabled(True)
+                self.__actionFileFinishClient.setEnabled(True)
+                self.__nextClientPushButton.setEnabled(False)
+                self.__returnClientPushButton.setEnabled(True)
+                self.__finishClientPushButton.setEnabled(True)
         else:
-            self.__infoLabel.setText(self.tr('Сессия не начата...'))
+            self.__countLCDNumber.display(0)
+            self.__countLCDNumber.setPalette(self.__paletteRed)
+
+            self.__clientLCDNumber.display('000')
+            self.__clientLCDNumber.setPalette(self.__paletteRed)
+
+            self.__timeLateLCDNumber.display('00:00:00')
+            self.__timeLateLCDNumber.setPalette(self.__paletteRed)
+            self.__timeLateLCDNumber._stop()
+
             self.__actionFileNextClient.setEnabled(False)
+            self.__actionFileReturnClient.setEnabled(False)
             self.__actionFileFinishClient.setEnabled(False)
             self.__nextClientPushButton.setEnabled(False)
+            self.__returnClientPushButton.setEnabled(False)
             self.__finishClientPushButton.setEnabled(False)
 
 
