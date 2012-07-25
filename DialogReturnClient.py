@@ -31,7 +31,22 @@ class DialogReturnClient(QtGui.QDialog):
 
         self.__userComboBox = QtGui.QComboBox()
         # Button
-        self.__meReturnClientPushButton = QtGui.QPushButton(self.tr('Вернуть в очередь ко мне'))
+        strStyleSheetMePushButton = 'QPushButton { '\
+                                    'border: 1px solid silver; '\
+                                    'border-radius: 3px; '\
+                                    'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #f6f7fa, stop: 1 #dadbde); '\
+                                    'min-width: 80px; '\
+                                    'padding: 3px;} '\
+                                    'QPushButton:enabled { '\
+                                    'font: bold; '\
+                                    'color: green;} '\
+                                    'QPushButton:hover { '\
+                                    'border: 1px solid #3CB371;} '\
+                                    'QPushButton:pressed { '\
+                                    'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #dadbde, stop: 1 #f6f7fa);}'
+
+        self.__meReturnClientPushButton = QtGui.QPushButton(self.tr('Ко мне в очередь'))
+        self.__meReturnClientPushButton.setStyleSheet(strStyleSheetMePushButton)
 
         self.__dialogButtonBox = QtGui.QDialogButtonBox(
             QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel)
@@ -65,7 +80,8 @@ class DialogReturnClient(QtGui.QDialog):
 
     def _setServiceId(self, serviceId):
         self.__serviceId = serviceId
-        self._serviceCurrentIndex(self.__serviceComboBox.findData(self.__serviceId))
+        currentIndex = self.__serviceComboBox.findData(self.__serviceId)
+        self.__serviceComboBox.setCurrentIndex(currentIndex)
 
     def _serviceCurrentIndex(self, index):
         cursor = self.__dataBase.cursor()
@@ -74,7 +90,6 @@ class DialogReturnClient(QtGui.QDialog):
                        'AND `user`.`id`<>"%s"' % (self.__serviceComboBox.itemData(index), self.__userId))
         self.__dataBase.commit()
         lstUser = cursor.fetchall()
-        print lstUser
 
         self.__userComboBox.clear()
         self.__userComboBox.insertItem(0, self.tr('.::все сотрудники::.'))
