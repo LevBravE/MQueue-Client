@@ -10,6 +10,7 @@ from TimeLateLCDNumber import TimeLateLCDNumber
 from SynchronizationServerThread import SynchronizationServerThread
 from SynchronizationSessionThread import SynchronizationSessionThread
 from SynchronizationCountThread import SynchronizationCountThread
+from SynchronizationStatusThread import SynchronizationStatusThread
 
 #**************************************************************************************************
 # class: MainWindow
@@ -23,7 +24,7 @@ class MainWindow(QtGui.QMainWindow):
         QtGui.QMainWindow.__init__(self)
         self.__APPLICATION_CORP = 'LevCorp'
         self.__APPLICATION_NAME = 'MQueue-Client'
-        self.__VERSION = '2.0'
+        self.__VERSION = '2.1'
         self.__dataBase = None
         self.__session = None
         self.__sessionClient = False
@@ -36,9 +37,11 @@ class MainWindow(QtGui.QMainWindow):
         self.__synchronizationServerThread = SynchronizationServerThread()
         self.__synchronizationSessionThread = SynchronizationSessionThread()
         self.__synchronizationCountThread = SynchronizationCountThread()
+        self.__synchronizationStatusThread = SynchronizationStatusThread()
         # Timer
         self.__synchronizationTimer = QtCore.QTimer()
         self.__synchronizationCountTimer = QtCore.QTimer()
+        self.__synchronizationStatusTimer = QtCore.QTimer()
         # Label
         self.__userNameLabel = QtGui.QLabel()
 
@@ -102,12 +105,27 @@ class MainWindow(QtGui.QMainWindow):
                              'QPushButton:pressed { '\
                              'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #dadbde, stop: 1 #f6f7fa);}'
 
+        strStyleSheetMePushButton = 'QPushButton { '\
+                                  'border: 1px solid silver; '\
+                                  'border-radius: 3px; '\
+                                  'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #f6f7fa, stop: 1 #dadbde); '\
+                                  'min-width: 80px; '\
+                                  'min-height: 38px; '\
+                                  'padding: 3px;} '\
+                                  'QPushButton:enabled { '\
+                                  'font: bold; '\
+                                  'color: green;} '\
+                                  'QPushButton:hover { '\
+                                  'border: 1px solid #3CB371;} '\
+                                  'QPushButton:pressed { '\
+                                  'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #dadbde, stop: 1 #f6f7fa);}'
+
         strStyleSheetPushButton = 'QPushButton { ' \
                                   'border: 1px solid silver; ' \
                                   'border-radius: 3px; ' \
                                   'background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #f6f7fa, stop: 1 #dadbde); ' \
                                   'min-width: 80px; ' \
-                                  'min-height: 55px; ' \
+                                  'min-height: 38px; ' \
                                   'padding: 3px;} ' \
                                   'QPushButton:hover { ' \
                                   'border: 1px solid #3CB371;} ' \
@@ -126,6 +144,10 @@ class MainWindow(QtGui.QMainWindow):
         self.__logoutPushButton.setToolTip(self.tr('Выйти'))
         self.__logoutPushButton.setVisible(False)
 
+        self.__nextClientMePushButton = QtGui.QPushButton(self.tr('Следующий ко мне'))
+        self.__nextClientMePushButton.setStyleSheet(strStyleSheetMePushButton)
+        self.__nextClientMePushButton.setEnabled(False)
+
         self.__nextClientPushButton = QtGui.QPushButton(self.tr('Следующий'))
         self.__nextClientPushButton.setStyleSheet(strStyleSheetPushButton)
         self.__nextClientPushButton.setEnabled(False)
@@ -143,6 +165,7 @@ class MainWindow(QtGui.QMainWindow):
         self.__systemTrayIcon.show()
         # Layout
         self.__layoutVButton = QtGui.QVBoxLayout()
+        self.__layoutVButton.addWidget(self.__nextClientMePushButton)
         self.__layoutVButton.addWidget(self.__nextClientPushButton)
         self.__layoutVButton.addWidget(self.__returnClientPushButton)
         self.__layoutVButton.addWidget(self.__finishClientPushButton)
@@ -197,10 +220,12 @@ class MainWindow(QtGui.QMainWindow):
         self.__synchronizationTimer.timeout.connect(self._synchronizationAutoServer)
         self.__synchronizationTimer.timeout.connect(self._synchronizationAutoSession)
         self.__synchronizationCountTimer.timeout.connect(self._synchronizationAutoCount)
+        self.__synchronizationStatusTimer.timeout.connect(self._synchronizationAutoStatus)
 
         self.__loginPushButton.clicked.connect(self._userClickedLogin)
         self.__logoutPushButton.clicked.connect(self._userClickedLogout)
 
+        self.__nextClientMePushButton.clicked.connect(self._nextClientMe)
         self.__nextClientPushButton.clicked.connect(self._nextClient)
         self.__returnClientPushButton.clicked.connect(self._returnClient)
         self.__finishClientPushButton.clicked.connect(self._finishClient)
@@ -283,6 +308,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.__userNameLabel.setText(self.tr('<b style="font-size: 11pt;">%s</b>' % dialogLogin._userName()))
                 self.__serviceId = dialogLogin._serviceId()
                 self.__synchronizationCountTimer.start(5000)
+                self.__synchronizationStatusTimer.start(1000)
 
                 self.__logoutPushButton.setVisible(True)
 
@@ -312,6 +338,7 @@ class MainWindow(QtGui.QMainWindow):
                     self.__actionFileNextClient.setEnabled(False)
                     self.__actionFileReturnClient.setEnabled(True)
                     self.__actionFileFinishClient.setEnabled(True)
+                    self.__nextClientMePushButton.setEnabled(False)
                     self.__nextClientPushButton.setEnabled(False)
                     self.__returnClientPushButton.setEnabled(True)
                     self.__finishClientPushButton.setEnabled(True)
@@ -329,6 +356,7 @@ class MainWindow(QtGui.QMainWindow):
             self.__userNameLabel.setText(self.tr('<b style="font-size: 11pt;">%s</b>' % dialogLogin._userName()))
             self.__serviceId = dialogLogin._serviceId()
             self.__synchronizationCountTimer.start(5000)
+            self.__synchronizationStatusTimer.start(1000)
 
             self.__loginPushButton.setVisible(False)
             self.__logoutPushButton.setVisible(True)
@@ -359,6 +387,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.__actionFileNextClient.setEnabled(False)
                 self.__actionFileReturnClient.setEnabled(True)
                 self.__actionFileFinishClient.setEnabled(True)
+                self.__nextClientMePushButton.setEnabled(False)
                 self.__nextClientPushButton.setEnabled(False)
                 self.__returnClientPushButton.setEnabled(True)
                 self.__finishClientPushButton.setEnabled(True)
@@ -376,6 +405,7 @@ class MainWindow(QtGui.QMainWindow):
         self.__userNameLabel.setText('')
         self.__serviceId = None
         self.__synchronizationCountTimer.stop()
+        self.__synchronizationStatusTimer.stop()
 
         self.__clientLCDNumber.display('000')
         self.__clientLCDNumber.setPalette(self.__paletteRed)
@@ -391,9 +421,45 @@ class MainWindow(QtGui.QMainWindow):
         self.__actionFileNextClient.setEnabled(False)
         self.__actionFileReturnClient.setEnabled(False)
         self.__actionFileFinishClient.setEnabled(False)
+        self.__nextClientMePushButton.setEnabled(False)
         self.__nextClientPushButton.setEnabled(False)
         self.__returnClientPushButton.setEnabled(False)
         self.__finishClientPushButton.setEnabled(False)
+
+    def _nextClientMe(self):
+        cursor = self.__dataBase.cursor()
+        cursor.execute('SELECT `client`.`id`, `client`.`number` FROM `mqueuedb`.`client` '
+                       'WHERE `client`.`served` = 0 AND `client`.`call` = 0 AND `client`.`service_id` = %s '
+                       'AND `client`.`user_id` = %s' % (self.__serviceId, self.__userId))
+        self.__dataBase.commit()
+        client = cursor.fetchone()
+        if client:
+            self.__clientId = client[0]
+            clientNumber = client[1]
+
+            cursor.execute('SELECT NOW()')
+            self.__dataBase.commit()
+            startDataTime = unicode(cursor.fetchone()[0])
+
+            cursor.execute('UPDATE `mqueuedb`.`client` SET `start_time`="%s", `call`="1", `user_id`="%s" '
+                           'WHERE `id`="%s"' % (startDataTime, self.__userId, self.__clientId))
+            self.__dataBase.commit()
+
+            self.__clientLCDNumber.display(clientNumber)
+            self.__clientLCDNumber.setPalette(self.__paletteGreen)
+
+            self.__timeLateLCDNumber._setStartDataTime(startDataTime, startDataTime)
+            self.__timeLateLCDNumber.setPalette(self.__paletteGreen)
+            self.__timeLateLCDNumber._start()
+
+            self.__sessionClient = True
+            self.__actionFileNextClient.setEnabled(False)
+            self.__actionFileReturnClient.setEnabled(True)
+            self.__actionFileFinishClient.setEnabled(True)
+            self.__nextClientMePushButton.setEnabled(False)
+            self.__nextClientPushButton.setEnabled(False)
+            self.__returnClientPushButton.setEnabled(True)
+            self.__finishClientPushButton.setEnabled(True)
 
     def _nextClient(self):
         cursor = self.__dataBase.cursor()
@@ -425,6 +491,7 @@ class MainWindow(QtGui.QMainWindow):
             self.__actionFileNextClient.setEnabled(False)
             self.__actionFileReturnClient.setEnabled(True)
             self.__actionFileFinishClient.setEnabled(True)
+            self.__nextClientMePushButton.setEnabled(False)
             self.__nextClientPushButton.setEnabled(False)
             self.__returnClientPushButton.setEnabled(True)
             self.__finishClientPushButton.setEnabled(True)
@@ -447,6 +514,7 @@ class MainWindow(QtGui.QMainWindow):
             self.__actionFileNextClient.setEnabled(False)
             self.__actionFileReturnClient.setEnabled(False)
             self.__actionFileFinishClient.setEnabled(False)
+            self.__nextClientMePushButton.setEnabled(False)
             self.__nextClientPushButton.setEnabled(False)
             self.__returnClientPushButton.setEnabled(False)
             self.__finishClientPushButton.setEnabled(False)
@@ -472,6 +540,7 @@ class MainWindow(QtGui.QMainWindow):
         self.__actionFileNextClient.setEnabled(False)
         self.__actionFileReturnClient.setEnabled(False)
         self.__actionFileFinishClient.setEnabled(False)
+        self.__nextClientMePushButton.setEnabled(False)
         self.__nextClientPushButton.setEnabled(False)
         self.__returnClientPushButton.setEnabled(False)
         self.__finishClientPushButton.setEnabled(False)
@@ -595,19 +664,20 @@ class MainWindow(QtGui.QMainWindow):
         if self.__session:
             lstClients = self.__synchronizationCountThread._response()
 
-            if lstClients:
-                self.__countLCDNumber.display(len(lstClients))
+            if lstClients[0]:
+                self.__countLCDNumber.display(len(lstClients[0]))
                 self.__countLCDNumber.setPalette(self.__paletteGreen)
                 if not self.__sessionClient and not self.isActiveWindow():
                     QtGui.QApplication.alert(self)
                     self.__systemTrayIcon.showMessage(
                         self.tr('Внимание! Очередь...'),
-                        self.tr('Количество людей в очереди - %s') % len(lstClients))
+                        self.tr('Количество людей в очереди - %s') % len(lstClients[0]))
 
                 if self.__sessionClient:
                     self.__actionFileNextClient.setEnabled(False)
                     self.__actionFileReturnClient.setEnabled(True)
                     self.__actionFileFinishClient.setEnabled(True)
+                    self.__nextClientMePushButton.setEnabled(False)
                     self.__nextClientPushButton.setEnabled(False)
                     self.__returnClientPushButton.setEnabled(True)
                     self.__finishClientPushButton.setEnabled(True)
@@ -619,12 +689,16 @@ class MainWindow(QtGui.QMainWindow):
                     self.__returnClientPushButton.setEnabled(False)
                     self.__finishClientPushButton.setEnabled(False)
 
+                    if lstClients[1]:
+                        self.__nextClientMePushButton.setEnabled(True)
+
             elif not self.__sessionClient:
                 self.__countLCDNumber.display(0)
                 self.__countLCDNumber.setPalette(self.__paletteRed)
                 self.__actionFileNextClient.setEnabled(False)
                 self.__actionFileReturnClient.setEnabled(False)
                 self.__actionFileFinishClient.setEnabled(False)
+                self.__nextClientMePushButton.setEnabled(False)
                 self.__nextClientPushButton.setEnabled(False)
                 self.__returnClientPushButton.setEnabled(False)
                 self.__finishClientPushButton.setEnabled(False)
@@ -634,6 +708,7 @@ class MainWindow(QtGui.QMainWindow):
                 self.__actionFileNextClient.setEnabled(False)
                 self.__actionFileReturnClient.setEnabled(True)
                 self.__actionFileFinishClient.setEnabled(True)
+                self.__nextClientMePushButton.setEnabled(False)
                 self.__nextClientPushButton.setEnabled(False)
                 self.__returnClientPushButton.setEnabled(True)
                 self.__finishClientPushButton.setEnabled(True)
@@ -651,8 +726,14 @@ class MainWindow(QtGui.QMainWindow):
             self.__actionFileNextClient.setEnabled(False)
             self.__actionFileReturnClient.setEnabled(False)
             self.__actionFileFinishClient.setEnabled(False)
+            self.__nextClientMePushButton.setEnabled(False)
             self.__nextClientPushButton.setEnabled(False)
             self.__returnClientPushButton.setEnabled(False)
             self.__finishClientPushButton.setEnabled(False)
+
+    def _synchronizationAutoStatus(self):
+        self.__synchronizationStatusThread._setDataBase(self.__dataBase)
+        self.__synchronizationStatusThread._setUserId(self.__userId)
+        self.__synchronizationStatusThread.start()
 
 
