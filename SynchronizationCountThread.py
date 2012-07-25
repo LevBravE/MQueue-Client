@@ -33,12 +33,18 @@ class SynchronizationCountThread(QtCore.QThread):
 
     def run(self, *args, **kwargs):
         try:
-            self.__response = None
+            self.__response = []
             cursor = self.__dataBase.cursor()
             cursor.execute('SELECT `client`.`id`, `client`.`number` FROM `mqueuedb`.`client` '
                            'WHERE `client`.`served` = 0 AND `client`.`call` = 0 AND `client`.`service_id` = %s '
                            'AND ( `client`.`user_id` = %s OR `client`.`user_id` IS NULL )' % (self.__serviceId, self.__userId))
             self.__dataBase.commit()
-            self.__response = cursor.fetchall()
+            self.__response.append(cursor.fetchall())
+
+            cursor.execute('SELECT `client`.`id`, `client`.`number` FROM `mqueuedb`.`client` '
+                           'WHERE `client`.`served` = 0 AND `client`.`call` = 0 AND `client`.`service_id` = %s '
+                           'AND `client`.`user_id` = %s' % (self.__serviceId, self.__userId))
+            self.__dataBase.commit()
+            self.__response.append(cursor.fetchall())
         except Exception:
             pass
